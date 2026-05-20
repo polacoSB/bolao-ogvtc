@@ -16,10 +16,15 @@ export default function AdminPage() {
     [key: string]: { brasil: string; adversario: string };
   }>({});
 
+  useEffect(() => {
+    if (liberado) {
+      carregarResultados();
+    }
+  }, [liberado]);
+
   function entrarAdmin() {
     if (codigo === "ogvtc2026") {
       setLiberado(true);
-      carregarResultados();
       return;
     }
 
@@ -32,7 +37,8 @@ export default function AdminPage() {
       .select("*");
 
     if (error) {
-      console.log(error);
+      console.error(error);
+      alert("Erro ao carregar resultados");
       return;
     }
 
@@ -74,6 +80,7 @@ export default function AdminPage() {
       );
 
     if (error) {
+      console.error(error);
       alert("Erro ao salvar");
       return;
     }
@@ -89,9 +96,18 @@ export default function AdminPage() {
       .eq("jogo", jogo);
 
     if (error) {
+      console.error(error);
       alert("Erro ao excluir");
       return;
     }
+
+    setPlacares((prev) => ({
+      ...prev,
+      [jogo]: {
+        brasil: "",
+        adversario: "",
+      },
+    }));
 
     alert("Resultado excluído 🗑️");
     carregarResultados();
@@ -105,7 +121,8 @@ export default function AdminPage() {
     setPlacares((prev) => ({
       ...prev,
       [jogo]: {
-        ...prev[jogo],
+        brasil: prev[jogo]?.brasil || "",
+        adversario: prev[jogo]?.adversario || "",
         [time]: valor,
       },
     }));
@@ -113,7 +130,7 @@ export default function AdminPage() {
 
   if (!liberado) {
     return (
-      <main className="min-h-screen bg-black flex items-center justify-center p-6">
+      <main className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
         <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
           <h1 className="text-3xl font-bold text-center mb-6">
             🔐 Painel Admin
