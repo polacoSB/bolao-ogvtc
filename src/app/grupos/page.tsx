@@ -55,7 +55,6 @@ const grupos = [
 ];
 
 export default function GruposPage() {
-  const [nome, setNome] = useState("");
   const [palpites, setPalpites] = useState<{
     [key: string]: {
       primeiro: string;
@@ -79,8 +78,10 @@ export default function GruposPage() {
   }
 
   async function salvarGrupo(grupo: string) {
-    if (!nome.trim()) {
-      alert("Digite seu nome");
+    const nome = localStorage.getItem("nomeJogador");
+
+    if (!nome) {
+      alert("Jogador não encontrado");
       return;
     }
 
@@ -100,7 +101,7 @@ export default function GruposPage() {
       .from("classificacoes")
       .insert([
         {
-          jogador_nome: nome.trim(),
+          jogador_nome: nome,
           grupo,
           primeiro: palpite.primeiro,
           segundo: palpite.segundo,
@@ -121,16 +122,6 @@ export default function GruposPage() {
       <h1 className="text-5xl font-bold text-center text-white mb-10">
         🏆 Classificados dos Grupos
       </h1>
-
-      <div className="max-w-6xl mx-auto mb-8">
-        <input
-          type="text"
-          placeholder="Seu nome"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          className="w-full p-4 rounded-2xl border text-xl"
-        />
-      </div>
 
       <div className="max-w-6xl mx-auto space-y-8">
         {grupos.map((grupoData) => (
