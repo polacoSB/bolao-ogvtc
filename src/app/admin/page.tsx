@@ -12,13 +12,17 @@ const jogosBrasil = [
 export default function AdminPage() {
   const [codigo, setCodigo] = useState("");
   const [liberado, setLiberado] = useState(false);
+
   const [placares, setPlacares] = useState<{
     [key: string]: { brasil: string; adversario: string };
   }>({});
 
+  const [apostas, setApostas] = useState<any[]>([]);
+
   useEffect(() => {
     if (liberado) {
       carregarResultados();
+      carregarApostas();
     }
   }, [liberado]);
 
@@ -32,19 +36,9 @@ export default function AdminPage() {
   }
 
   async function carregarResultados() {
-    const { data, error } = await supabase
-      .from("resultados")
-      .select("*");
+    const { data } = await supabase.from("resultados").select("*");
 
-    if (error) {
-      console.error(error);
-      alert("Erro ao carregar resultados");
-      return;
-    }
-
-    const novosPlacares: {
-      [key: string]: { brasil: string; adversario: string };
-    } = {};
+    const novosPlacares: any = {};
 
     data?.forEach((resultado) => {
       novosPlacares[resultado.jogo] = {
@@ -56,6 +50,15 @@ export default function AdminPage() {
     setPlacares(novosPlacares);
   }
 
+  async function carregarApostas() {
+    const { data } = await supabase
+      .from("apostas")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setApostas(data || []);
+  }
+
   async function salvarResultado(jogo: string) {
     const resultado = placares[jogo];
 
@@ -64,23 +67,20 @@ export default function AdminPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("resultados")
-      .upsert(
-        [
-          {
-            jogo,
-            gols_brasil: Number(resultado.brasil),
-            gols_adversario: Number(resultado.adversario),
-          },
-        ],
+    const { error } = await supabase.from("resultados").upsert(
+      [
         {
-          onConflict: "jogo",
-        }
-      );
+          jogo,
+          gols_brasil: Number(resultado.brasil),
+          gols_adversario: Number(resultado.adversario),
+        },
+      ],
+      {
+        onConflict: "jogo",
+      }
+    );
 
     if (error) {
-      console.error(error);
       alert("Erro ao salvar");
       return;
     }
@@ -90,16 +90,7 @@ export default function AdminPage() {
   }
 
   async function excluirResultado(jogo: string) {
-    const { error } = await supabase
-      .from("resultados")
-      .delete()
-      .eq("jogo", jogo);
-
-    if (error) {
-      console.error(error);
-      alert("Erro ao excluir");
-      return;
-    }
+    await supabase.from("resultados").delete().eq("jogo", jogo);
 
     setPlacares((prev) => ({
       ...prev,
@@ -111,6 +102,21 @@ export default function AdminPage() {
 
     alert("Resultado excluído 🗑️");
     carregarResultados();
+  }
+
+  async function excluirAposta(id: string) {
+    const { error } = await supabase
+      .from("apostas")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert("Erro ao excluir aposta");
+      return;
+    }
+
+    alert("Aposta excluída");
+    carregarApostas();
   }
 
   function atualizarPlacar(
@@ -208,6 +214,36 @@ export default function AdminPage() {
             </div>
           </div>
         ))}
+
+        <div className="bg-white rounded-3xl shadow-xl p-8">
+          <h2 className="text-3xl font-bold mb-6">
+            📋 Apostas dos Jogadores
+          </h2>
+
+          <div className="space-y-4">
+            {apostas.map((aposta) => (
+              <div
+                key={aposta.id}
+                className="flex justify-between items-center border p-4 rounded-xl"
+              >
+                <div>
+                  <p className="font-bold">{aposta.jogador_nome}</p>
+                  <p>{aposta.jogo}</p>
+                  <p>
+                    {aposta.gols_brasil} x {aposta.gols_adversario}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => excluirAposta(aposta.id)}
+                  className="bg-red-600 text-white px-5 py-2 rounded-xl font-bold"
+                >
+                  Excluir
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </main>
   );
