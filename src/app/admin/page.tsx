@@ -1,253 +1,168 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-const jogosFixos = [
-  { id: 1, casa: "Brasil", fora: "Adversário 1" },
-  { id: 2, casa: "Brasil", fora: "Adversário 2" },
-  { id: 3, casa: "Brasil", fora: "Adversário 3" },
+const jogosBrasil = [
+  "Brasil x Adversário 1",
+  "Brasil x Adversário 2",
+  "Brasil x Adversário 3",
 ];
 
 export default function AdminPage() {
-  const [senha, setSenha] = useState("");
-  const [autorizado, setAutorizado] = useState(false);
-  const [resultados, setResultados] = useState<any>({});
+  const [codigo, setCodigo] = useState("");
+  const [liberado, setLiberado] = useState(false);
+  const [placares, setPlacares] = useState<{
+    [key: string]: { brasil: string; adversario: string };
+  }>({});
 
   function entrarAdmin() {
-    if (senha === "admin123") {
-      setAutorizado(true);
-      carregarResultados();
-    } else {
-      alert("Senha incorreta");
-    }
-  }
-
-  async function carregarResultados() {
-    const { data, error } = await supabase.from("resultados").select("*");
-
-    if (error) {
-      console.error(error);
+    if (codigo === "ogvtc2026") {
+      setLiberado(true);
       return;
     }
 
-    const mapa: any = {};
-    data.forEach((r) => {
-      mapa[r.jogo_id] = r;
-    });
-
-    setResultados(mapa);
+    alert("Código admin incorreto");
   }
 
-  async function salvarResultado(jogoId: number) {
-    const placarCasa = resultados[jogoId]?.placar_casa || 0;
-    const placarFora = resultados[jogoId]?.placar_fora || 0;
+  async function salvarResultado(jogo: string) {
+    const resultado = placares[jogo];
 
-    const { error } = await supabase.from("resultados").upsert({
-      jogo_id: jogoId,
-      placar_casa: Number(placarCasa),
-      placar_fora: Number(placarFora),
-    });
-
-    if (error) {
-      console.error(error);
-      alert("Erro ao salvar resultado");
+    if (!resultado?.brasil || !resultado?.adversario) {
+      alert("Preencha os placares");
       return;
     }
 
-    alert("Resultado salvo com sucesso");
-    carregarResultados();
+    const { error } = await supabase
+      .from("resultados")
+      .upsert(
+        [
+          {
+            jogo,
+            gols_brasil: Number(resultado.brasil),
+            gols_adversario: Number(resultado.adversario),
+          },
+        ],
+        {
+          onConflict: "jogo",
+        }
+      );
+
+    if (error) {
+      alert("Erro ao salvar");
+      return;
+    }
+
+    alert("Resultado salvo ⚽");
   }
 
-  async function excluirResultado(jogoId: number) {
+  async function excluirResultado(jogo: string) {
     const { error } = await supabase
       .from("resultados")
       .delete()
-      .eq("jogo_id", jogoId);
+      .eq("jogo", jogo);
 
     if (error) {
-      console.error(error);
-      alert("Erro ao excluir resultado");
+      alert("Erro ao excluir");
       return;
     }
 
-    alert("Resultado excluído com sucesso");
-    carregarResultados();
+    alert("Resultado excluído 🗑️");
   }
 
   function atualizarPlacar(
-    jogoId: number,
-    campo: "placar_casa" | "placar_fora",
+    jogo: string,
+    time: "brasil" | "adversario",
     valor: string
   ) {
-    setResultados((prev: any) => ({
+    setPlacares((prev) => ({
       ...prev,
-      [jogoId]: {
-        ...prev[jogoId],
-        [campo]: valor,
+      [jogo]: {
+        ...prev[jogo],
+        [time]: valor,
       },
     }));
   }
 
-  if (!autorizado) {
+  if (!liberado) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#00b140",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <div
-          style={{
-            background: "white",
-            padding: 30,
-            borderRadius: 20,
-            display: "flex",
-            flexDirection: "column",
-            gap: 15,
-            width: 320,
-          }}
-        >
-          <h2>Área Admin</h2>
+      <main className="min-h-screen bg-black flex items-center justify-center p-6">
+        <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
+          <h1 className="text-3xl font-bold text-center mb-6">
+            🔐 Painel Admin
+          </h1>
 
           <input
             type="password"
-            placeholder="Senha"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              border: "1px solid #ccc",
-            }}
+            placeholder="Código admin"
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
+            className="w-full border p-3 rounded-xl mb-4"
           />
 
           <button
             onClick={entrarAdmin}
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              border: "none",
-              background: "#008f32",
-              color: "white",
-              fontWeight: "bold",
-              cursor: "pointer",
-            }}
+            className="w-full bg-black text-white p-3 rounded-xl font-bold"
           >
             Entrar
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#00b140",
-        padding: 30,
-      }}
-    >
-      <h1
-        style={{
-          textAlign: "center",
-          color: "white",
-          marginBottom: 30,
-        }}
-      >
-        Administração de Resultados
+    <main className="min-h-screen bg-gray-100 p-6">
+      <h1 className="text-5xl font-bold text-center mb-10">
+        🔐 Painel Admin
       </h1>
 
-      {jogosFixos.map((jogo) => (
-        <div
-          key={jogo.id}
-          style={{
-            background: "white",
-            padding: 20,
-            borderRadius: 20,
-            marginBottom: 20,
-            maxWidth: 700,
-            marginInline: "auto",
-          }}
-        >
-          <h2>
-            {jogo.casa} x {jogo.fora}
-          </h2>
-
+      <div className="max-w-5xl mx-auto space-y-6">
+        {jogosBrasil.map((jogo) => (
           <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
+            key={jogo}
+            className="bg-white rounded-3xl shadow-xl p-8"
           >
-            <input
-              type="number"
-              value={resultados[jogo.id]?.placar_casa || ""}
-              onChange={(e) =>
-                atualizarPlacar(jogo.id, "placar_casa", e.target.value)
-              }
-              style={{
-                padding: 10,
-                width: 80,
-                borderRadius: 10,
-                border: "1px solid #ccc",
-              }}
-            />
+            <h2 className="text-2xl font-bold mb-4">{jogo}</h2>
 
-            <span>X</span>
+            <div className="flex gap-4 items-center flex-wrap">
+              <input
+                type="number"
+                placeholder="Brasil"
+                className="w-24 border p-3 rounded-xl"
+                onChange={(e) =>
+                  atualizarPlacar(jogo, "brasil", e.target.value)
+                }
+              />
 
-            <input
-              type="number"
-              value={resultados[jogo.id]?.placar_fora || ""}
-              onChange={(e) =>
-                atualizarPlacar(jogo.id, "placar_fora", e.target.value)
-              }
-              style={{
-                padding: 10,
-                width: 80,
-                borderRadius: 10,
-                border: "1px solid #ccc",
-              }}
-            />
+              <span className="text-2xl font-bold">X</span>
 
-            <button
-              onClick={() => salvarResultado(jogo.id)}
-              style={{
-                padding: 12,
-                borderRadius: 10,
-                border: "none",
-                background: "#008f32",
-                color: "white",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
-            >
-              Salvar Resultado
-            </button>
+              <input
+                type="number"
+                placeholder="Adversário"
+                className="w-24 border p-3 rounded-xl"
+                onChange={(e) =>
+                  atualizarPlacar(jogo, "adversario", e.target.value)
+                }
+              />
 
-            <button
-              onClick={() => excluirResultado(jogo.id)}
-              style={{
-                padding: 12,
-                borderRadius: 10,
-                border: "none",
-                background: "#d62828",
-                color: "white",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
-            >
-              Excluir Resultado
-            </button>
+              <button
+                onClick={() => salvarResultado(jogo)}
+                className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold"
+              >
+                Salvar
+              </button>
+
+              <button
+                onClick={() => excluirResultado(jogo)}
+                className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold"
+              >
+                Excluir
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </main>
   );
 }
