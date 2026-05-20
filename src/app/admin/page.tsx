@@ -9,20 +9,69 @@ const jogosBrasil = [
   "Brasil x Adversário 3",
 ];
 
+const grupos = [
+  {
+    grupo: "Grupo A",
+    times: ["México", "África do Sul", "Coreia do Sul", "República Tcheca"],
+  },
+  {
+    grupo: "Grupo B",
+    times: ["Canadá", "Bósnia", "Catar", "Suíça"],
+  },
+  {
+    grupo: "Grupo C",
+    times: ["Brasil", "Marrocos", "Haiti", "Escócia"],
+  },
+  {
+    grupo: "Grupo D",
+    times: ["Estados Unidos", "Paraguai", "Austrália", "Turquia"],
+  },
+  {
+    grupo: "Grupo E",
+    times: ["Alemanha", "Curaçao", "Costa do Marfim", "Equador"],
+  },
+  {
+    grupo: "Grupo F",
+    times: ["Holanda", "Japão", "Suécia", "Tunísia"],
+  },
+  {
+    grupo: "Grupo G",
+    times: ["Bélgica", "Egito", "Irã", "Nova Zelândia"],
+  },
+  {
+    grupo: "Grupo H",
+    times: ["Espanha", "Cabo Verde", "Arábia Saudita", "Uruguai"],
+  },
+  {
+    grupo: "Grupo I",
+    times: ["França", "Senegal", "Bolívia/Iraque", "Noruega"],
+  },
+  {
+    grupo: "Grupo J",
+    times: ["Argentina", "Argélia", "Áustria", "Jordânia"],
+  },
+  {
+    grupo: "Grupo K",
+    times: ["Portugal", "RD Congo", "Uzbequistão", "Colômbia"],
+  },
+  {
+    grupo: "Grupo L",
+    times: ["Inglaterra", "Croácia", "Gana", "Panamá"],
+  },
+];
+
 export default function AdminPage() {
   const [codigo, setCodigo] = useState("");
   const [liberado, setLiberado] = useState(false);
-
-  const [placares, setPlacares] = useState<{
-    [key: string]: { brasil: string; adversario: string };
-  }>({});
-
+  const [placares, setPlacares] = useState<any>({});
   const [apostas, setApostas] = useState<any[]>([]);
+  const [classificados, setClassificados] = useState<any>({});
 
   useEffect(() => {
     if (liberado) {
       carregarResultados();
       carregarApostas();
+      carregarClassificados();
     }
   }, [liberado]);
 
@@ -38,16 +87,16 @@ export default function AdminPage() {
   async function carregarResultados() {
     const { data } = await supabase.from("resultados").select("*");
 
-    const novosPlacares: any = {};
+    const mapa: any = {};
 
-    data?.forEach((resultado) => {
-      novosPlacares[resultado.jogo] = {
-        brasil: String(resultado.gols_brasil),
-        adversario: String(resultado.gols_adversario),
+    data?.forEach((r) => {
+      mapa[r.jogo] = {
+        brasil: String(r.gols_brasil),
+        adversario: String(r.gols_adversario),
       };
     });
 
-    setPlacares(novosPlacares);
+    setPlacares(mapa);
   }
 
   async function carregarApostas() {
@@ -59,13 +108,25 @@ export default function AdminPage() {
     setApostas(data || []);
   }
 
+  async function carregarClassificados() {
+    const { data } = await supabase
+      .from("grupos_oficiais")
+      .select("*");
+
+    const mapa: any = {};
+
+    data?.forEach((g) => {
+      mapa[g.grupo] = {
+        primeiro: g.primeiro,
+        segundo: g.segundo,
+      };
+    });
+
+    setClassificados(mapa);
+  }
+
   async function salvarResultado(jogo: string) {
     const resultado = placares[jogo];
-
-    if (!resultado?.brasil || !resultado?.adversario) {
-      alert("Preencha os placares");
-      return;
-    }
 
     const { error } = await supabase.from("resultados").upsert(
       [
@@ -91,45 +152,57 @@ export default function AdminPage() {
 
   async function excluirResultado(jogo: string) {
     await supabase.from("resultados").delete().eq("jogo", jogo);
-
-    setPlacares((prev) => ({
-      ...prev,
-      [jogo]: {
-        brasil: "",
-        adversario: "",
-      },
-    }));
-
-    alert("Resultado excluído 🗑️");
     carregarResultados();
   }
 
   async function excluirAposta(id: string) {
-    const { error } = await supabase
-      .from("apostas")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      alert("Erro ao excluir aposta");
-      return;
-    }
-
-    alert("Aposta excluída");
+    await supabase.from("apostas").delete().eq("id", id);
     carregarApostas();
   }
 
-  function atualizarPlacar(
-    jogo: string,
-    time: "brasil" | "adversario",
-    valor: string
-  ) {
-    setPlacares((prev) => ({
+  async function salvarGrupo(grupo: string) {
+    const dados = classificados[grupo];
+
+    const { error } = await supabase
+      .from("grupos_oficiais")
+      .upsert(
+        [
+          {
+            grupo,
+            primeiro: dados.primeiro,
+            segundo: dados.segundo,
+          },
+        ],
+        {
+          onConflict: "grupo",
+        }
+      );
+
+    if (error) {
+      alert("Erro ao salvar grupo");
+      return;
+    }
+
+    alert("Grupo salvo 🏆");
+    carregarClassificados();
+  }
+
+  function atualizarPlacar(jogo: string, campo: string, valor: string) {
+    setPlacares((prev: any) => ({
       ...prev,
       [jogo]: {
-        brasil: prev[jogo]?.brasil || "",
-        adversario: prev[jogo]?.adversario || "",
-        [time]: valor,
+        ...prev[jogo],
+        [campo]: valor,
+      },
+    }));
+  }
+
+  function atualizarGrupo(grupo: string, campo: string, valor: string) {
+    setClassificados((prev: any) => ({
+      ...prev,
+      [grupo]: {
+        ...prev[grupo],
+        [campo]: valor,
       },
     }));
   }
@@ -167,83 +240,121 @@ export default function AdminPage() {
         🔐 Painel Admin
       </h1>
 
-      <div className="max-w-5xl mx-auto space-y-6">
-        {jogosBrasil.map((jogo) => (
-          <div
-            key={jogo}
-            className="bg-white rounded-3xl shadow-xl p-8"
-          >
-            <h2 className="text-2xl font-bold mb-4">{jogo}</h2>
+      <div className="max-w-6xl mx-auto space-y-10">
 
-            <div className="flex gap-4 items-center flex-wrap">
+        <div className="bg-white rounded-3xl shadow-xl p-8">
+          <h2 className="text-3xl font-bold mb-6">⚽ Resultados</h2>
+
+          {jogosBrasil.map((jogo) => (
+            <div key={jogo} className="flex gap-4 items-center mb-4 flex-wrap">
+              <span className="font-bold w-52">{jogo}</span>
+
               <input
                 type="number"
-                placeholder="Brasil"
                 value={placares[jogo]?.brasil || ""}
                 onChange={(e) =>
                   atualizarPlacar(jogo, "brasil", e.target.value)
                 }
-                className="w-24 border p-3 rounded-xl"
+                className="w-20 border p-2 rounded-xl"
               />
 
-              <span className="text-2xl font-bold">X</span>
+              <span>X</span>
 
               <input
                 type="number"
-                placeholder="Adversário"
                 value={placares[jogo]?.adversario || ""}
                 onChange={(e) =>
                   atualizarPlacar(jogo, "adversario", e.target.value)
                 }
-                className="w-24 border p-3 rounded-xl"
+                className="w-20 border p-2 rounded-xl"
               />
 
               <button
                 onClick={() => salvarResultado(jogo)}
-                className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold"
+                className="bg-green-600 text-white px-4 py-2 rounded-xl"
               >
                 Salvar
               </button>
 
               <button
                 onClick={() => excluirResultado(jogo)}
-                className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold"
+                className="bg-red-600 text-white px-4 py-2 rounded-xl"
               >
                 Excluir
               </button>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
 
         <div className="bg-white rounded-3xl shadow-xl p-8">
-          <h2 className="text-3xl font-bold mb-6">
-            📋 Apostas dos Jogadores
-          </h2>
+          <h2 className="text-3xl font-bold mb-6">🏆 Classificados Oficiais</h2>
 
-          <div className="space-y-4">
-            {apostas.map((aposta) => (
-              <div
-                key={aposta.id}
-                className="flex justify-between items-center border p-4 rounded-xl"
-              >
-                <div>
-                  <p className="font-bold">{aposta.jogador_nome}</p>
-                  <p>{aposta.jogo}</p>
-                  <p>
-                    {aposta.gols_brasil} x {aposta.gols_adversario}
-                  </p>
-                </div>
+          {grupos.map((grupoData) => (
+            <div key={grupoData.grupo} className="mb-6">
+              <h3 className="font-bold mb-2">{grupoData.grupo}</h3>
+
+              <div className="flex gap-4 flex-wrap">
+                <select
+                  value={classificados[grupoData.grupo]?.primeiro || ""}
+                  onChange={(e) =>
+                    atualizarGrupo(grupoData.grupo, "primeiro", e.target.value)
+                  }
+                  className="border p-3 rounded-xl"
+                >
+                  <option value="">1º colocado</option>
+                  {grupoData.times.map((time) => (
+                    <option key={time}>{time}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={classificados[grupoData.grupo]?.segundo || ""}
+                  onChange={(e) =>
+                    atualizarGrupo(grupoData.grupo, "segundo", e.target.value)
+                  }
+                  className="border p-3 rounded-xl"
+                >
+                  <option value="">2º colocado</option>
+                  {grupoData.times.map((time) => (
+                    <option key={time}>{time}</option>
+                  ))}
+                </select>
 
                 <button
-                  onClick={() => excluirAposta(aposta.id)}
-                  className="bg-red-600 text-white px-5 py-2 rounded-xl font-bold"
+                  onClick={() => salvarGrupo(grupoData.grupo)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-xl"
                 >
-                  Excluir
+                  Salvar Grupo
                 </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
+
+        <div className="bg-white rounded-3xl shadow-xl p-8">
+          <h2 className="text-3xl font-bold mb-6">📋 Apostas dos Jogadores</h2>
+
+          {apostas.map((aposta) => (
+            <div
+              key={aposta.id}
+              className="flex justify-between items-center border p-4 rounded-xl mb-3"
+            >
+              <div>
+                <p className="font-bold">{aposta.jogador_nome}</p>
+                <p>{aposta.jogo}</p>
+                <p>{aposta.gols_brasil} x {aposta.gols_adversario}</p>
+              </div>
+
+              <button
+                onClick={() => excluirAposta(aposta.id)}
+                className="bg-red-600 text-white px-4 py-2 rounded-xl"
+              >
+                Excluir
+              </button>
+            </div>
+          ))}
+        </div>
+
       </div>
     </main>
   );
