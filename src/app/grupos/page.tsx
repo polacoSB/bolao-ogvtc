@@ -4,108 +4,187 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const grupos = [
-  "Grupo A",
-  "Grupo B",
-  "Grupo C",
-  "Grupo D",
-  "Grupo E",
-  "Grupo F",
-  "Grupo G",
-  "Grupo H",
-  "Grupo I",
-  "Grupo J",
-  "Grupo K",
-  "Grupo L",
+  {
+    grupo: "Grupo A",
+    times: ["México", "África do Sul", "Coreia do Sul", "República Tcheca"],
+  },
+  {
+    grupo: "Grupo B",
+    times: ["Canadá", "Bósnia", "Catar", "Suíça"],
+  },
+  {
+    grupo: "Grupo C",
+    times: ["Brasil", "Marrocos", "Haiti", "Escócia"],
+  },
+  {
+    grupo: "Grupo D",
+    times: ["Estados Unidos", "Paraguai", "Austrália", "Turquia"],
+  },
+  {
+    grupo: "Grupo E",
+    times: ["Alemanha", "Curaçao", "Costa do Marfim", "Equador"],
+  },
+  {
+    grupo: "Grupo F",
+    times: ["Holanda", "Japão", "Suécia", "Tunísia"],
+  },
+  {
+    grupo: "Grupo G",
+    times: ["Bélgica", "Egito", "Irã", "Nova Zelândia"],
+  },
+  {
+    grupo: "Grupo H",
+    times: ["Espanha", "Cabo Verde", "Arábia Saudita", "Uruguai"],
+  },
+  {
+    grupo: "Grupo I",
+    times: ["França", "Senegal", "Bolívia/Iraque", "Noruega"],
+  },
+  {
+    grupo: "Grupo J",
+    times: ["Argentina", "Argélia", "Áustria", "Jordânia"],
+  },
+  {
+    grupo: "Grupo K",
+    times: ["Portugal", "RD Congo", "Uzbequistão", "Colômbia"],
+  },
+  {
+    grupo: "Grupo L",
+    times: ["Inglaterra", "Croácia", "Gana", "Panamá"],
+  },
 ];
 
 export default function GruposPage() {
-  const [dados, setDados] = useState<{
-    [key: string]: { primeiro: string; segundo: string };
+  const [nome, setNome] = useState("");
+  const [palpites, setPalpites] = useState<{
+    [key: string]: {
+      primeiro: string;
+      segundo: string;
+    };
   }>({});
 
-  async function salvarGrupo(grupo: string) {
-    const jogador = localStorage.getItem("nomeJogador");
-
-    if (!jogador) {
-      alert("Jogador não encontrado");
-      return;
-    }
-
-    const info = dados[grupo];
-
-    if (!info?.primeiro || !info?.segundo) {
-      alert("Preencha primeiro e segundo colocado");
-      return;
-    }
-
-    const { error } = await supabase.from("classificacoes").insert([
-      {
-        jogador_nome: jogador,
-        grupo,
-        primeiro: info.primeiro,
-        segundo: info.segundo,
-      },
-    ]);
-
-    if (error) {
-      alert("Você já salvou esse grupo 😄");
-      return;
-    }
-
-    alert("Grupo salvo com sucesso 🏆");
-  }
-
-  function atualizar(
+  function atualizarPalpite(
     grupo: string,
     campo: "primeiro" | "segundo",
     valor: string
   ) {
-    setDados((prev) => ({
+    setPalpites((prev) => ({
       ...prev,
       [grupo]: {
-        ...prev[grupo],
+        primeiro: prev[grupo]?.primeiro || "",
+        segundo: prev[grupo]?.segundo || "",
         [campo]: valor,
       },
     }));
   }
 
+  async function salvarGrupo(grupo: string) {
+    if (!nome.trim()) {
+      alert("Digite seu nome");
+      return;
+    }
+
+    const palpite = palpites[grupo];
+
+    if (!palpite?.primeiro || !palpite?.segundo) {
+      alert("Escolha os dois classificados");
+      return;
+    }
+
+    if (palpite.primeiro === palpite.segundo) {
+      alert("Escolha times diferentes");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("classificacoes")
+      .insert([
+        {
+          jogador_nome: nome.trim(),
+          grupo,
+          primeiro: palpite.primeiro,
+          segundo: palpite.segundo,
+        },
+      ]);
+
+    if (error) {
+      console.error(error);
+      alert("Erro ao salvar");
+      return;
+    }
+
+    alert(`${grupo} salvo com sucesso 🏆`);
+  }
+
   return (
     <main className="min-h-screen bg-blue-700 p-6">
-      <h1 className="text-5xl font-bold text-white text-center mb-10">
+      <h1 className="text-5xl font-bold text-center text-white mb-10">
         🏆 Classificados dos Grupos
       </h1>
 
-      <div className="max-w-5xl mx-auto space-y-6">
-        {grupos.map((grupo) => (
+      <div className="max-w-6xl mx-auto mb-8">
+        <input
+          type="text"
+          placeholder="Seu nome"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          className="w-full p-4 rounded-2xl border text-xl"
+        />
+      </div>
+
+      <div className="max-w-6xl mx-auto space-y-8">
+        {grupos.map((grupoData) => (
           <div
-            key={grupo}
-            className="bg-white rounded-3xl shadow-xl p-6"
+            key={grupoData.grupo}
+            className="bg-white rounded-3xl shadow-xl p-8"
           >
-            <h2 className="text-2xl font-bold mb-4">{grupo}</h2>
+            <h2 className="text-3xl font-bold mb-6">
+              {grupoData.grupo}
+            </h2>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <input
-                type="text"
-                placeholder="1º colocado"
-                className="border p-3 rounded-xl"
+              <select
+                value={palpites[grupoData.grupo]?.primeiro || ""}
                 onChange={(e) =>
-                  atualizar(grupo, "primeiro", e.target.value)
+                  atualizarPalpite(
+                    grupoData.grupo,
+                    "primeiro",
+                    e.target.value
+                  )
                 }
-              />
+                className="p-4 rounded-2xl border text-lg"
+              >
+                <option value="">1º colocado</option>
+                {grupoData.times.map((time) => (
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </select>
 
-              <input
-                type="text"
-                placeholder="2º colocado"
-                className="border p-3 rounded-xl"
+              <select
+                value={palpites[grupoData.grupo]?.segundo || ""}
                 onChange={(e) =>
-                  atualizar(grupo, "segundo", e.target.value)
+                  atualizarPalpite(
+                    grupoData.grupo,
+                    "segundo",
+                    e.target.value
+                  )
                 }
-              />
+                className="p-4 rounded-2xl border text-lg"
+              >
+                <option value="">2º colocado</option>
+                {grupoData.times.map((time) => (
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <button
-              onClick={() => salvarGrupo(grupo)}
-              className="mt-4 bg-yellow-400 px-6 py-3 rounded-xl font-bold"
+              onClick={() => salvarGrupo(grupoData.grupo)}
+              className="mt-6 bg-yellow-500 text-white px-8 py-4 rounded-2xl font-bold text-lg"
             >
               Salvar Grupo 🏆
             </button>
