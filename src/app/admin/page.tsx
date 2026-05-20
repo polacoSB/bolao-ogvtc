@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const jogosBrasil = [
@@ -19,10 +19,35 @@ export default function AdminPage() {
   function entrarAdmin() {
     if (codigo === "ogvtc2026") {
       setLiberado(true);
+      carregarResultados();
       return;
     }
 
     alert("Código admin incorreto");
+  }
+
+  async function carregarResultados() {
+    const { data, error } = await supabase
+      .from("resultados")
+      .select("*");
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    const novosPlacares: {
+      [key: string]: { brasil: string; adversario: string };
+    } = {};
+
+    data?.forEach((resultado) => {
+      novosPlacares[resultado.jogo] = {
+        brasil: String(resultado.gols_brasil),
+        adversario: String(resultado.gols_adversario),
+      };
+    });
+
+    setPlacares(novosPlacares);
   }
 
   async function salvarResultado(jogo: string) {
@@ -54,6 +79,7 @@ export default function AdminPage() {
     }
 
     alert("Resultado salvo ⚽");
+    carregarResultados();
   }
 
   async function excluirResultado(jogo: string) {
@@ -68,6 +94,7 @@ export default function AdminPage() {
     }
 
     alert("Resultado excluído 🗑️");
+    carregarResultados();
   }
 
   function atualizarPlacar(
@@ -129,10 +156,11 @@ export default function AdminPage() {
               <input
                 type="number"
                 placeholder="Brasil"
-                className="w-24 border p-3 rounded-xl"
+                value={placares[jogo]?.brasil || ""}
                 onChange={(e) =>
                   atualizarPlacar(jogo, "brasil", e.target.value)
                 }
+                className="w-24 border p-3 rounded-xl"
               />
 
               <span className="text-2xl font-bold">X</span>
@@ -140,10 +168,11 @@ export default function AdminPage() {
               <input
                 type="number"
                 placeholder="Adversário"
-                className="w-24 border p-3 rounded-xl"
+                value={placares[jogo]?.adversario || ""}
                 onChange={(e) =>
                   atualizarPlacar(jogo, "adversario", e.target.value)
                 }
+                className="w-24 border p-3 rounded-xl"
               />
 
               <button
